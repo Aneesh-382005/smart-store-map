@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../app/utils/supabaseClient'
+import { supabase } from '../utils/supabaseClient'
 
 function Page()
 {
