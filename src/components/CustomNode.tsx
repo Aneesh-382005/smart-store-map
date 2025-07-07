@@ -1,5 +1,5 @@
 import { useReactFlow } from "reactflow";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { NodeResizer, Handle, Position } from 'reactflow';
 import '@reactflow/node-resizer/dist/style.css'
 
@@ -20,101 +20,84 @@ type CustomNodeProps = {
     selected: boolean;
 };
 
-export default function CustomNode({ id, data, selected }: CustomNodeProps)
-{
-    const { setNodes } = useReactFlow()
+export default function CustomNode({ id, data, selected }: CustomNodeProps) {
+    const { setNodes } = useReactFlow();
     
-    const [label, setLabel] = useState(data.label)
-    const [color, setColor] = useState(data.color)
-    const [metadata, setMetadata] = useState(data.metadata)
-    const [width, setWidth] = useState(data.width || 150);
-    const [height, setHeight] = useState(data.height || 150);
-
-    const aspectRatio = width / height || 1;
+    const aspectRatio = data.width && data.height ? data.width / data.height : 1;
     const scale = 2;
-    
-      useEffect(() => {
+    const { width = 150, height = 150, color, metadata } = data;
+
+    // Update node with new data
+    const updateNode = useCallback((updates: any) => {
+        setNodes((nodes) =>
+            nodes.map((node) =>
+                node.id === id
+                    ? { ...node, ...updates, data: { ...node.data, ...updates.data } }
+                    : node
+            )
+        );
+    }, [id, setNodes]);
+
+    // Handle resize from NodeResizer
+    const handleResize = useCallback((size: { width: number; height: number }) => {
+        const newArea = Math.round((size.width * size.height) / (scale * scale));
+        updateNode({
+            data: { width: size.width, height: size.height, metadata: { ...metadata, area: newArea } },
+            style: { width: size.width, height: size.height }
+        });
+    }, [updateNode, metadata, scale]);
+
+    // Auto-resize when area changes
+    useEffect(() => {
         if (metadata.area > 0) {
             const newWidth = Math.sqrt(metadata.area * aspectRatio) * scale;
             const newHeight = newWidth / aspectRatio;
-            setWidth(newWidth);
-            setHeight(newHeight);
-    }
-  }, [metadata.area]);
-
-    useEffect(() => {
-        setNodes((nds) =>
-          nds.map((node) =>
-            node.id === id
-              ? {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    label,
-                    color,
-                    metadata,
-                    width,
-                    height,
-                  },
-                }
-              : node
-          )
-        );
-      }, [label, color, metadata, width, height, id, setNodes]);
+            
+            if (Math.abs(newWidth - width) > 5 || Math.abs(newHeight - height) > 5) {
+                updateNode({
+                    data: { width: newWidth, height: newHeight },
+                    style: { width: newWidth, height: newHeight }
+                });
+            }
+        }
+    }, [metadata.area, aspectRatio, scale, width, height, updateNode]);
     
-    const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => setLabel(e.target.value);
-    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => setColor(e.target.value);
-    const handleMetadataChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => 
-    {
-        const { name, value } = e.target;
-        setMetadata({ ...metadata, [name]: value });
-    }
-
     return (
-    <div
-      style={{
-        width,
-        height,
-        background: color,
-        border: '2px solid #333',
-        padding: '8px',
-        borderRadius: '4px',
-        overflow: 'hidden',
-        opacity: 1,
-      }}
-    >
-      {/* Connection handles for creating edges */}
-      <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Bottom} />
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
-      
-      {selected && (
-        <NodeResizer
-          minWidth={50}
-          minHeight={50}
-          onResizeEnd={(e, size) => {
-            setWidth(size.width);
-            setHeight(size.height);
-          }}
-        />
-      )}
-      <input value={label} onChange={handleLabelChange} placeholder="Label" />
-      <input type="color" value={color} onChange={handleColorChange} />
-      <input name="name" value={metadata.name} onChange={handleMetadataChange} placeholder="Name" />
-      <textarea
-        name="description"
-        value={metadata.description}
-        onChange={handleMetadataChange}
-        placeholder="Description"
-      />
-      <input
-        type="number"
-        name="area"
-        value={metadata.area}
-        onChange={handleMetadataChange}
-        placeholder="Area"
-      />
-    </div>
-  );
+        <div style={{
+            width: '100%',
+            height: '100%',
+            background: color,
+            borderRadius: '4px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            boxSizing: 'border-box',
+        }}>
+            <Handle type="target" position={Position.Top} />
+            <Handle type="source" position={Position.Bottom} />
+            <Handle type="target" position={Position.Left} />
+            <Handle type="source" position={Position.Right} />
+            
+            {selected && (
+                <NodeResizer
+                    minWidth={50}
+                    minHeight={50}
+                    onResizeEnd={(event, size) => handleResize(size)}
+                    onResize={(event, size) => handleResize(size)}
+                />
+            )}
+            
+            <div style={{ 
+                fontWeight: 'bold', 
+                textAlign: 'center',
+                padding: '8px',
+                color: 'white',
+                textShadow: '1px 1px 2px rgba(0,0,0,0.7)',
+                fontSize: '14px',
+                userSelect: 'none'
+            }}>
+                {metadata.name}
+            </div>
+        </div>
+    );
 }
