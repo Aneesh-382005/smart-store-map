@@ -7,8 +7,8 @@ import ReactFlow, {
     useNodesState,
     useEdgesState,
     Connection,
-    useReactFlow,
-    Node
+    Node,
+    Edge
 } from 'reactflow'
 import { ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -28,11 +28,10 @@ export default function AdminGraph()
 
 function AdminGraphContent()
 {
-    const { project } = useReactFlow();
     const [ nodes, setNodes, onNodesChange ] = useNodesState([]);
     const [ edges, setEdges, onEdgesChange ] = useEdgesState([]);
     const [ selectedNode, setSelectedNode ] = useState<Node | null>(null);
-    const [ history, setHistory ] = useState<{ nodes: any[], edges: any[] }[]>([]);
+    const [ history, setHistory ] = useState<{ nodes: Node[], edges: Edge[] }[]>([]);
     const [ historyIndex, setHistoryIndex ] = useState(-1);
     
     // Keep selected node in sync with actual node data
@@ -109,6 +108,12 @@ function AdminGraphContent()
     // Keyboard event handler
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            // Don't handle keys if user is typing in an input field
+            if (event.target && (event.target as HTMLElement).tagName === 'INPUT' || 
+                (event.target as HTMLElement).tagName === 'TEXTAREA') {
+                return;
+            }
+
             // Delete key
             if (event.key === 'Delete' || event.key === 'Backspace') {
                 event.preventDefault();
@@ -138,6 +143,7 @@ function AdminGraphContent()
         const id = (nodes.length + 1).toString();
         const width = 150;
         const height = 150;
+        const area = width * height; // Calculate correct area: 150 × 150 = 22,500
         const newNode = {
             id,
             type: 'custom',
@@ -151,7 +157,7 @@ function AdminGraphContent()
                 metadata: {
                     name: `Node ${id}`,
                     description: `Description for Node ${id}`,
-                    area: 1000
+                    area
                 }
             }
         }
@@ -170,7 +176,7 @@ function AdminGraphContent()
         setSelectedNode(node);
     }, []);
 
-    const updateSelectedNodeMetadata = (field: string, value: any) => {
+    const updateSelectedNodeMetadata = (field: string, value: string | number) => {
         if (!selectedNode) return;
         
         setNodes((nds) =>
@@ -191,25 +197,33 @@ function AdminGraphContent()
         );
     };
 
-    const updateSelectedNodeStyle = (field: string, value: any) => {
+    const updateSelectedNodeStyle = (field: string, value: string | number) => {
         if (!selectedNode) return;
         
         setNodes((nds) =>
-            nds.map((node) =>
-                node.id === selectedNode.id
-                    ? {
-                        ...node,
-                        data: {
-                            ...node.data,
-                            [field]: value
-                        },
-                        style: {
-                            ...node.style,
-                            [field]: value
-                        }
-                    }
-                    : node
-            )
+            nds.map((node) => {
+                if (node.id !== selectedNode.id) return node;
+                
+                const updatedData = { ...node.data, [field]: value };
+                
+                // If width or height is changed manually, update area accordingly
+                if (field === 'width' || field === 'height') {
+                    const newWidth = field === 'width' ? value : (node.data.width || 150);
+                    const newHeight = field === 'height' ? value : (node.data.height || 150);
+                    const newArea = (newWidth as number) * (newHeight as number); // Simple area calculation: width × height
+                    
+                    updatedData.metadata = {
+                        ...node.data.metadata,
+                        area: newArea
+                    };
+                }
+                
+                return {
+                    ...node,
+                    data: updatedData,
+                    style: { ...node.style, [field]: value }
+                };
+            })
         );
     };
 

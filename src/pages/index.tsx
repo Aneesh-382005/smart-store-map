@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabaseClient'
 
+interface Todo {
+  id: string;
+  title: string;
+}
+
 export default function HomePage() {
-  const [todos, setTodos] = useState<any[]>([])
+  const [todos, setTodos] = useState<Todo[]>([])
 
   useEffect(() => {
     async function getTodos() {

@@ -14,7 +14,7 @@ type CustomNodeProps = {
             name: string;
             description: string;
             area: number;
-            [key: string]: any;
+            [key: string]: string | number;
         };
     };
     selected: boolean;
@@ -24,11 +24,10 @@ export default function CustomNode({ id, data, selected }: CustomNodeProps) {
     const { setNodes } = useReactFlow();
     
     const aspectRatio = data.width && data.height ? data.width / data.height : 1;
-    const scale = 2;
     const { width = 150, height = 150, color, metadata } = data;
 
     // Update node with new data
-    const updateNode = useCallback((updates: any) => {
+    const updateNode = useCallback((updates: Partial<{ data: Partial<CustomNodeProps['data']>; style: Record<string, number> }>) => {
         setNodes((nodes) =>
             nodes.map((node) =>
                 node.id === id
@@ -40,27 +39,30 @@ export default function CustomNode({ id, data, selected }: CustomNodeProps) {
 
     // Handle resize from NodeResizer
     const handleResize = useCallback((size: { width: number; height: number }) => {
-        const newArea = Math.round((size.width * size.height) / (scale * scale));
+        const newArea = size.width * size.height; // Simple area calculation
         updateNode({
             data: { width: size.width, height: size.height, metadata: { ...metadata, area: newArea } },
             style: { width: size.width, height: size.height }
         });
-    }, [updateNode, metadata, scale]);
+    }, [updateNode, metadata]);
 
-    // Auto-resize when area changes
+    // Auto-resize when area changes (only if area doesn't match current size)
     useEffect(() => {
         if (metadata.area > 0) {
-            const newWidth = Math.sqrt(metadata.area * aspectRatio) * scale;
-            const newHeight = newWidth / aspectRatio;
+            const currentArea = width * height;
             
-            if (Math.abs(newWidth - width) > 5 || Math.abs(newHeight - height) > 5) {
+            // Only auto-resize if area significantly differs from current calculated area
+            if (Math.abs(metadata.area - currentArea) > 500) {
+                const newWidth = Math.sqrt(metadata.area * aspectRatio);
+                const newHeight = newWidth / aspectRatio;
+                
                 updateNode({
                     data: { width: newWidth, height: newHeight },
                     style: { width: newWidth, height: newHeight }
                 });
             }
         }
-    }, [metadata.area, aspectRatio, scale, width, height, updateNode]);
+    }, [metadata.area, aspectRatio, height, width, updateNode]);
     
     return (
         <div style={{
