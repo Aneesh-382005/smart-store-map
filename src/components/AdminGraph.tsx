@@ -17,22 +17,27 @@ import { supabase } from '../utils/supabaseClient';
 
 const nodeTypes = { custom: CustomNode }
 
-export default function AdminGraph() 
+interface AdminGraphProps {
+    onBack?: () => void;
+}
+
+export default function AdminGraph({ onBack }: AdminGraphProps = {}) 
 {
     return (
         <ReactFlowProvider>
-            <AdminGraphContent />
+            <AdminGraphContent onBack={onBack} />
         </ReactFlowProvider>
     )
 }
 
-function AdminGraphContent()
+function AdminGraphContent({ onBack }: { onBack?: () => void })
 {
     const [ nodes, setNodes, onNodesChange ] = useNodesState([]);
     const [ edges, setEdges, onEdgesChange ] = useEdgesState([]);
     const [ selectedNode, setSelectedNode ] = useState<Node | null>(null);
     const [ history, setHistory ] = useState<{ nodes: Node[], edges: Edge[] }[]>([]);
     const [ historyIndex, setHistoryIndex ] = useState(-1);
+    const [ savedMaps, setSavedMaps ] = useState<Array<{id: number; created_at: string; graph_json: {nodes: Node[], edges: Edge[]}; version: number}>>([]);
     
     // Keep selected node in sync with actual node data
     useEffect(() => {
@@ -136,14 +141,13 @@ function AdminGraphContent()
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [deleteSelected, undo, redo]);
 
-    const addNewNode = () =>
-    {
-        saveToHistory(); // Save current state before adding
+    const addNewNode = () => {
+        saveToHistory();
         
         const id = (nodes.length + 1).toString();
         const width = 150;
         const height = 150;
-        const area = width * height; // Calculate correct area: 150 × 150 = 22,500
+        const area = width * height;
         const newNode = {
             id,
             type: 'custom',
@@ -165,12 +169,10 @@ function AdminGraphContent()
     }
         
 
-    const onConnect = useCallback(
-    (params: Connection) => {
-        saveToHistory(); // Save before adding edge
+    const onConnect = useCallback((params: Connection) => {
+        saveToHistory();
         setEdges((eds) => addEdge(params, eds));
-    },
-    [setEdges, saveToHistory])
+    }, [setEdges, saveToHistory]);
 
     const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
         setSelectedNode(node);
@@ -210,7 +212,7 @@ function AdminGraphContent()
                 if (field === 'width' || field === 'height') {
                     const newWidth = field === 'width' ? value : (node.data.width || 150);
                     const newHeight = field === 'height' ? value : (node.data.height || 150);
-                    const newArea = (newWidth as number) * (newHeight as number); // Simple area calculation: width × height
+                    const newArea = (newWidth as number) * (newHeight as number);
                     
                     updatedData.metadata = {
                         ...node.data.metadata,
@@ -228,19 +230,99 @@ function AdminGraphContent()
     };
 
     const saveGraph = async () => {
-        const { error } = await supabase.from('maps').insert([
-            {
-                name: 'MyCustomMap',
-                graph_json: JSON.stringify({nodes, edges})
+        try {
+            if (!nodes.length && !edges.length) {
+                alert('Nothing to save! Add some nodes first.');
+                return;
             }
-        ])
-        if (error) console.error('Error saving graph:', error)
-        else alert('Graph saved to supabase')
-    }
+
+            const graphData = {
+                graph_json: { nodes, edges }, // Store as JSON object, not string
+                version: 1
+            };
+
+            const { data, error } = await supabase
+                .from('maps')
+                .insert([graphData])
+                .select();
+
+            if (error) {
+                console.error('Supabase error:', error);
+                alert(`Error saving graph: ${error.message}`);
+            } else {
+                console.log('Graph saved successfully:', data);
+                alert('Graph saved successfully!');
+                loadSavedMaps(); // Refresh the list
+            }
+        } catch (err) {
+            console.error('Error:', err);
+            alert(`Error: ${err}`);
+        }
+    };
+
+    const loadSavedMaps = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('maps')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error loading maps:', error);
+            } else {
+                setSavedMaps(data || []);
+            }
+        } catch (err) {
+            console.error('Error loading maps:', err);
+        }
+    };
+
+    const loadGraph = async (mapId: number) => {
+        try {
+            const { data, error } = await supabase
+                .from('maps')
+                .select('*')
+                .eq('id', mapId)
+                .single();
+
+            if (error) {
+                console.error('Error loading graph:', error);
+                alert(`Error loading graph: ${error.message}`);
+            } else {
+                // Handle both JSON object and JSON string formats
+                const graphData = typeof data.graph_json === 'string' 
+                    ? JSON.parse(data.graph_json) 
+                    : data.graph_json;
+                
+                saveToHistory(); // Save current state before loading
+                setNodes(graphData.nodes || []);
+                setEdges(graphData.edges || []);
+                alert(`Graph loaded successfully!`);
+            }
+        } catch (err) {
+            console.error('Error loading graph:', err);
+            alert(`Error loading graph: ${err}`);
+        }
+    };
+
+    // Load saved maps on component mount
+    useEffect(() => {
+        loadSavedMaps();
+    }, []);
+
     return (
         <div style={{ width: '100vw', height: '90vh', display: 'flex' }}>
             <div style={{ flex: 1 }}>
                 <div className="flex space-x-2 p-2">
+                {onBack && (
+                    <button 
+                        onClick={onBack} 
+                        className="p-2 bg-gray-500 text-white rounded"
+                        title="Back to Home"
+                    >
+                        ← Back
+                    </button>
+                )}
                 <button onClick={addNewNode} className="p-2 bg-green-600 text-white rounded">
                     ➕ Add Node
                 </button>
@@ -270,7 +352,37 @@ function AdminGraphContent()
                 <button onClick={saveGraph} className="p-2 bg-blue-600 text-white rounded">
                     💾 Save to Supabase
                 </button>
+                <button 
+                    onClick={loadSavedMaps} 
+                    className="p-2 bg-purple-600 text-white rounded"
+                    title="Refresh saved maps"
+                >
+                    🔄 Refresh Maps
+                </button>
                 </div>
+
+                {/* Load saved maps dropdown */}
+                {savedMaps.length > 0 && (
+                    <div className="p-2 border-b">
+                        <select 
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    loadGraph(parseInt(e.target.value));
+                                }
+                            }}
+                            className="p-2 border rounded w-full max-w-md"
+                            defaultValue=""
+                        >
+                            <option value="">📂 Load Saved Map...</option>
+                            {savedMaps.map((map) => (
+                                <option key={map.id} value={map.id}>
+                                    Map #{map.id} - {new Date(map.created_at).toLocaleDateString()}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
                 <div style={{ width: '100%', height: '100%' }}>
                 <ReactFlow
                     nodes={nodes}
