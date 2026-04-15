@@ -38,6 +38,7 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const [ history, setHistory ] = useState<{ nodes: Node[], edges: Edge[] }[]>([]);
     const [ historyIndex, setHistoryIndex ] = useState(-1);
     const [ savedMaps, setSavedMaps ] = useState<Array<{id: number; created_at: string; graph_json: {nodes: Node[], edges: Edge[]}; version: number}>>([]);
+    const [ mapServiceMessage, setMapServiceMessage ] = useState('');
     
     // Keep selected node in sync with actual node data
     useEffect(() => {
@@ -232,9 +233,11 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const saveGraph = async () => {
         try {
             if (!supabase) {
+                setMapServiceMessage('Map service is currently paused.');
                 alert('Map service is currently paused.');
                 return;
             }
+            setMapServiceMessage('');
 
             if (!nodes.length && !edges.length) {
                 alert('Nothing to save! Add some nodes first.');
@@ -268,9 +271,11 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const loadSavedMaps = async () => {
         try {
             if (!supabase) {
+                setMapServiceMessage('Map service is currently paused.');
                 setSavedMaps([]);
                 return;
             }
+            setMapServiceMessage('');
 
             const { data, error } = await supabase
                 .from('maps')
@@ -290,9 +295,11 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const loadGraph = async (mapId: number) => {
         try {
             if (!supabase) {
+                setMapServiceMessage('Map service is currently paused.');
                 alert('Map service is currently paused.');
                 return;
             }
+            setMapServiceMessage('');
 
             const { data, error } = await supabase
                 .from('maps')
@@ -375,6 +382,11 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
                     🔄 Refresh Maps
                 </button>
                 </div>
+                {mapServiceMessage && (
+                    <div className="px-2 pb-2 text-amber-700 text-sm">
+                        {mapServiceMessage}
+                    </div>
+                )}
 
                 {/* Load saved maps dropdown */}
                 {savedMaps.length > 0 && (
