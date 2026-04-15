@@ -77,8 +77,20 @@ export default function HomePage() {
         return;
       }
 
-      const graphData =
-        typeof latestMap.graph_json === "string" ? JSON.parse(latestMap.graph_json) : latestMap.graph_json;
+      let graphData: { nodes?: Node[]; edges?: Edge[] };
+      try {
+        graphData =
+          typeof latestMap.graph_json === "string"
+            ? (JSON.parse(latestMap.graph_json) as { nodes?: Node[]; edges?: Edge[] })
+            : latestMap.graph_json;
+      } catch (parseError) {
+        console.error(parseError);
+        setErrorMessage("Map data is corrupted and could not be parsed.");
+        setNodes([]);
+        setEdges([]);
+        setLoading(false);
+        return;
+      }
 
       setNodes(normalizeNodes(graphData.nodes || []));
       setEdges((graphData.edges || []) as Edge[]);
