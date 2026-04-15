@@ -232,7 +232,7 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const saveGraph = async () => {
         try {
             if (!supabase) {
-                alert('Supabase project is currently paused or not configured.');
+                alert('Map service is currently paused.');
                 return;
             }
 
@@ -290,7 +290,7 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const loadGraph = async (mapId: number) => {
         try {
             if (!supabase) {
-                alert('Supabase project is currently paused or not configured.');
+                alert('Map service is currently paused.');
                 return;
             }
 
