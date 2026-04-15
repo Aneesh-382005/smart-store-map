@@ -57,6 +57,12 @@ export default function HomePage() {
       setLoading(true);
       setErrorMessage("");
 
+      if (!supabase) {
+        setErrorMessage("Map service is currently paused.");
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("maps")
         .select("graph_json")
