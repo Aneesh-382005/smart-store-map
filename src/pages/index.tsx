@@ -48,6 +48,7 @@ export default function HomePage() {
   const [startNodeId, setStartNodeId] = useState("");
   const [endNodeId, setEndNodeId] = useState("");
   const [pathNodeIds, setPathNodeIds] = useState<string[]>([]);
+  const [hasCalculatedPath, setHasCalculatedPath] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -95,6 +96,7 @@ export default function HomePage() {
       setNodes(normalizeNodes(graphData.nodes || []));
       setEdges((graphData.edges || []) as Edge[]);
       setPathNodeIds([]);
+      setHasCalculatedPath(false);
       setLoading(false);
     }
 
@@ -148,6 +150,7 @@ export default function HomePage() {
       endNodeId
     );
     setPathNodeIds(path);
+    setHasCalculatedPath(true);
   };
 
   return (
@@ -170,7 +173,11 @@ export default function HomePage() {
             <select
               className="border rounded p-2"
               value={startNodeId}
-              onChange={(e) => setStartNodeId(e.target.value)}
+              onChange={(e) => {
+                setStartNodeId(e.target.value);
+                setHasCalculatedPath(false);
+                setPathNodeIds([]);
+              }}
             >
               <option value="">Select start node</option>
               {nodes.map((node) => (
@@ -180,7 +187,15 @@ export default function HomePage() {
               ))}
             </select>
 
-            <select className="border rounded p-2" value={endNodeId} onChange={(e) => setEndNodeId(e.target.value)}>
+            <select
+              className="border rounded p-2"
+              value={endNodeId}
+              onChange={(e) => {
+                setEndNodeId(e.target.value);
+                setHasCalculatedPath(false);
+                setPathNodeIds([]);
+              }}
+            >
               <option value="">Select end node</option>
               {nodes.map((node) => (
                 <option key={`end-${node.id}`} value={node.id}>
@@ -200,7 +215,7 @@ export default function HomePage() {
 
           <UserMap nodes={highlightedMap.highlightedNodes} edges={highlightedMap.highlightedEdges} />
 
-          {startNodeId && endNodeId && pathNodeIds.length === 0 && (
+          {hasCalculatedPath && startNodeId && endNodeId && pathNodeIds.length === 0 && (
             <p className="mt-3 text-sm text-red-600">No path found between the selected nodes.</p>
           )}
           {pathNodeIds.length > 0 && (
