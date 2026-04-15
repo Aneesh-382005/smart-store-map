@@ -16,6 +16,7 @@ import CustomNode from './CustomNode'
 import { supabase } from '../utils/supabaseClient';
 
 const nodeTypes = { custom: CustomNode }
+const MAP_SERVICE_PAUSED_MESSAGE = 'Map service is currently paused.';
 
 interface AdminGraphProps {
     onBack?: () => void;
@@ -233,8 +234,7 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const saveGraph = async () => {
         try {
             if (!supabase) {
-                setMapServiceMessage('Map service is currently paused.');
-                alert('Map service is currently paused.');
+                setMapServiceMessage(MAP_SERVICE_PAUSED_MESSAGE);
                 return;
             }
             setMapServiceMessage('');
@@ -271,7 +271,7 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const loadSavedMaps = async () => {
         try {
             if (!supabase) {
-                setMapServiceMessage('Map service is currently paused.');
+                setMapServiceMessage(MAP_SERVICE_PAUSED_MESSAGE);
                 setSavedMaps([]);
                 return;
             }
@@ -295,8 +295,7 @@ function AdminGraphContent({ onBack }: { onBack?: () => void })
     const loadGraph = async (mapId: number) => {
         try {
             if (!supabase) {
-                setMapServiceMessage('Map service is currently paused.');
-                alert('Map service is currently paused.');
+                setMapServiceMessage(MAP_SERVICE_PAUSED_MESSAGE);
                 return;
             }
             setMapServiceMessage('');
